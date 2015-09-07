@@ -54,8 +54,6 @@
     NSLog(@"设备 WI-FI Mac 地址：%@",viewController.getWifiMacAddress);
     NSLog(@"Device Token：%@",viewController.getDeviceToken);
     NSLog(@"设备是否越狱：%@",viewController.deviceIsRoot);
-    NSLog(@"程序运行时间：%@",viewController.getRunningTime);
-    NSLog(@"应用来源：%@",viewController.getAppOrigin);
     NSLog(@"IDFA：%@",viewController.getIDFA);
     NSLog(@"设备地理位置：%@",viewController.getLocation);
     
@@ -303,15 +301,6 @@
     }
 }
 
--(NSString *)getRunningTime{
-    //未获取
-    return @"未获取到";
-}
-
--(NSString *)getAppOrigin{
-    //未获取
-    return @"未获取到";
-}
 
 -(NSString *)getIDFA{
     NSString *IDFA =[[[UIDevice currentDevice] identifierForVendor] UUIDString];

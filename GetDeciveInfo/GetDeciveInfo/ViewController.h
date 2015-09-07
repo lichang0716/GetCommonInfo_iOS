@@ -131,19 +131,7 @@
  */
 -(NSString *)deviceIsRoot;
 
-/**
- *  获取程序运行时间
- *
- *  @return 运行时间
- */
--(NSString *)getRunningTime;
 
-/**
- *  获取应用分发渠道
- *
- *  @return 应用分发渠道
- */
--(NSString *)getAppOrigin;
 
 /**
  *  获取设备广告标识符
