@@ -16,8 +16,12 @@
 //获取 IP 地址
 #import <ifaddrs.h>
 #import <arpa/inet.h>
+#import <sys/socket.h>
+#import <sys/sockio.h>
+#import <sys/ioctl.h>
 //WiFi MAC
 #import <SystemConfiguration/CaptiveNetwork.h>
+#import <sys/utsname.h>
 
 @interface ViewController ()
 
@@ -25,14 +29,16 @@
 
 @implementation ViewController
 
+#define GET_IP_URL_TXT                                              @"http://ipof.in/txt"
+#define GET_IP_URL_JSON                                             @"http://ipof.in/json"
+#define NULL_STR                                                    @""
+
 - (void)viewDidLoad {
     [super viewDidLoad];
-    // Do any additional setup after loading the view, typically from a nib.
 }
 
 - (void)didReceiveMemoryWarning {
     [super didReceiveMemoryWarning];
-    // Dispose of any resources that can be recreated.
 }
 
 - (IBAction)getInfo:(id)sender {
@@ -45,7 +51,6 @@
     NSLog(@"IP 地址：%@",viewController.getIPAddress);
     NSLog(@"IMEI：%@",viewController.getIMEI);
     NSLog(@"设备型号：%@",viewController.getDeviceType);
-    NSLog(@"设备生产商：%@",viewController.getDeviceProducer);
     NSLog(@"设备操作系统版本：%@",viewController.getDeviceOSVersion);
     NSLog(@"系统语言：%@",viewController.getSystemLanguage);
     NSLog(@"设备所在时区：%@",viewController.getSystemTimeZone);
@@ -56,7 +61,6 @@
     NSLog(@"设备是否越狱：%@",viewController.deviceIsRoot);
     NSLog(@"IDFA：%@",viewController.getIDFA);
     NSLog(@"设备地理位置：%@",viewController.getLocation);
-    
 }
 
 -(NSString *)getOperationSystem{
@@ -107,27 +111,27 @@
     return time;
 }
 
--(NSString *)getAppVersion{
+- (NSString *)getAppVersion{
     NSDictionary *infoDictionary = [[NSBundle mainBundle] infoDictionary];
     NSString *appVersion =[infoDictionary objectForKey:@"CFBundleShortVersionString"];
     return appVersion;
 }
 
--(NSString *)getOpenUDID{
+- (NSString *)getOpenUDID{
     unsigned char result[16];
     const char *cStr = [[[NSProcessInfo processInfo] globallyUniqueString] UTF8String];
-    CC_MD5( cStr, strlen(cStr), result );
+    CC_MD5( cStr, (CC_LONG)strlen(cStr), result );
     NSString *openUDID = [NSString stringWithFormat:
-                          @"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%08llx",
+                          @"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%08lx",
                           result[0], result[1], result[2], result[3],
                           result[4], result[5], result[6], result[7],
                           result[8], result[9], result[10], result[11],
                           result[12], result[13], result[14], result[15],
-                          arc4random() % 4294967295];
+                          (long)(arc4random() % 4294967295)];
     return openUDID;
 }
 
--(NSString *)getMacAddress{
+- (NSString *)getMacAddress{
     int                 mgmtInfoBase[6];
     char                *msgBuffer = NULL;
     size_t              length;
@@ -170,52 +174,35 @@
     return macAddressString;
 }
 
--(NSString *)getIPAddress{
-    NSString *address = @"error";
-    struct ifaddrs *interfaces = NULL;
-    struct ifaddrs *temp_addr = NULL;
-    int success = 0;
-    // retrieve the current interfaces - returns 0 on success
-    success = getifaddrs(&interfaces);
-    if (success == 0) {
-        // Loop through linked list of interfaces
-        temp_addr = interfaces;
-        while(temp_addr != NULL) {
-            if(temp_addr->ifa_addr->sa_family == AF_INET) {
-                // Check if interface is en0 which is the wifi connection on the iPhone
-                if([[NSString stringWithUTF8String:temp_addr->ifa_name] isEqualToString:@"en0"]) {
-                    // Get NSString from C String
-                    address = [NSString stringWithUTF8String:inet_ntoa(((struct sockaddr_in *)temp_addr->ifa_addr)->sin_addr)];
-                }
-            }
-            temp_addr = temp_addr->ifa_next;
-        }
+- (NSString *)getIPAddress{
+    NSError *error;
+    NSURL *getIpURL = [NSURL URLWithString:GET_IP_URL_TXT];
+    NSString *ip = [NSString stringWithContentsOfURL:getIpURL encoding:NSUTF8StringEncoding error:&error];
+    if (error) {
+        ip = NULL_STR;
     }
-    freeifaddrs(interfaces);
-    return address;
+    return ip;
 }
 
--(NSString *)getIMEI{
+- (NSString *)getIMEI{
     //无法获取
     return @"已被禁用，获取不到";
 }
 
--(NSString *)getDeviceType{
+- (NSString *)getDeviceType{
     NSString *deviceType = [[UIDevice currentDevice] model];
-    NSLog(@"localizedModel: %@", [[UIDevice currentDevice] localizedModel]);
+    struct utsname systemInfo;
+    uname(&systemInfo);
+    NSLog(@"localizedModel: %@", [NSString stringWithCString:systemInfo.machine encoding:NSUTF8StringEncoding]);
     return deviceType;
 }
 
--(NSString *)getDeviceProducer{
-    return @"Apple";
-}
-
--(NSString *)getDeviceOSVersion{
+- (NSString *)getDeviceOSVersion{
     NSString *systemVersion =[[UIDevice currentDevice] systemVersion];
     return systemVersion;
 }
 
--(NSString *)getSystemLanguage{
+- (NSString *)getSystemLanguage{
     NSUserDefaults* defs = [NSUserDefaults standardUserDefaults];
     NSArray* languages = [defs objectForKey:@"AppleLanguages"];
     NSString* preferredLang = [languages objectAtIndex:0];
@@ -227,13 +214,13 @@
     return countryCode;
 }
 
--(NSString *)getSystemTimeZone{
+- (NSString *)getSystemTimeZone{
     NSTimeZone *timeZone = [NSTimeZone systemTimeZone];
     NSString *systemTimeZone = (NSString *)timeZone;
     return systemTimeZone;
 }
 
--(NSString *)getNetworkType{
+- (NSString *)getNetworkType{
     UIApplication *app = [UIApplication sharedApplication];
     NSArray *children = [[[app valueForKeyPath:@"statusBar"] valueForKeyPath:@"foregroundView"] subviews];
     int type = 0;
@@ -268,7 +255,7 @@
     return stateString;
 }
 
--(NSString *)getWifiMacAddress{
+- (NSString *)getWifiMacAddress{
     NSString *ssid = @"Not Found";
     NSString *macIp = @"Not Found";
     CFArrayRef myArray = CNCopySupportedInterfaces();
@@ -283,13 +270,13 @@
     return macIp;
 }
 
--(NSString *)getDeviceToken{
+- (NSString *)getDeviceToken{
     //需要获取推送的权限才能获取
     //DeviceToken: {<cbad285b 632ce36b fba3c3ee 61cef046 18ef676e c345bb1b f87c15a4 af08f03b>}
     return @"需要权限";
 }
 
--(NSString *)deviceIsRoot{
+- (NSString *)deviceIsRoot{
     if ([[NSFileManager defaultManager] fileExistsAtPath:@"/User/Applications/"]) {
         NSLog(@"该设备已越狱");
         NSArray *applist = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/User/Applications/" error:nil];
@@ -302,12 +289,12 @@
 }
 
 
--(NSString *)getIDFA{
+- (NSString *)getIDFA{
     NSString *IDFA =[[[UIDevice currentDevice] identifierForVendor] UUIDString];
     return IDFA;
 }
 
--(NSString *)getLocation{
+- (NSString *)getLocation{
     //需要用户同意权限
     return @"需要同意权限";
 }
